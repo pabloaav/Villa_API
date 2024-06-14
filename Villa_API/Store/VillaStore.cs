@@ -4,10 +4,13 @@ namespace Villa_API.Store
 {
     public static class VillaStore
     {
-            public static List<VillaDto> villaList = new List<VillaDto>
+        //private static readonly VillaDto villaDto = new() { Id = 2, Nombre = "Vista a la Playa" };
+        //private static readonly VillaDto villaDto1 = new() { Id = 1, Nombre = "Vista a la Piscina" };
+
+        public static List<VillaDto> villaList = new List<VillaDto>
         {
-            new VillaDto{Id=1, Nombre="Vista a la Piscina"},
-            new VillaDto{Id=2, Nombre="Vista a la Playa"}
+            new() {Id=1, Nombre="Vista a la Piscina"},
+            new() {Id=2, Nombre="Vista a la Playa"}
         };
         
     }
