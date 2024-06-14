@@ -101,5 +101,40 @@ namespace Villa_API.Controllers
 
          return NoContent();
       }
-   }
-}
+
+      [HttpPut("{id:int}")]
+      [ProducesResponseType(StatusCodes.Status204NoContent)]
+      [ProducesResponseType(StatusCodes.Status400BadRequest)]
+      [ProducesResponseType(StatusCodes.Status404NotFound)]
+      public IActionResult UpdateVilla(int id, [FromBody] VillaDto updatedVillaDto)
+      {
+         if (updatedVillaDto == null || id != updatedVillaDto.Id)
+         {
+            return BadRequest("El objeto de villa no puede ser nulo.");
+         }
+
+         if (id != updatedVillaDto.Id)
+         {
+            return BadRequest("El ID proporcionado no coincide con el ID de la villa.");
+         }
+
+         var existingVilla = VillaStore.villaList.FirstOrDefault(v => v.Id == id);
+
+         if (existingVilla == null)
+         {
+            return NotFound();
+         }
+
+         // Actualizar propiedades de la villa existente con los valores del objeto actualizado
+         existingVilla.Nombre = updatedVillaDto.Nombre;
+         existingVilla.MetrosCuadrados = updatedVillaDto.MetrosCuadrados;
+         existingVilla.Ocupantes = updatedVillaDto.Ocupantes;
+         // ... otras propiedades que necesitas actualizar
+
+         // Retorno con código de estado 204 No Content
+         return NoContent();
+      }
+
+
+   } // class
+} // namespace

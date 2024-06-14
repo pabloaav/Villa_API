@@ -9,5 +9,8 @@ namespace Villa_API.Dto
       [Required]
       public string Nombre { get; set; }
       public DateTime FechaCreacion => DateTime.Now;
+
+      public int Ocupantes { get; set; }
+      public int MetrosCuadrados { get; set; }
    }
 }
