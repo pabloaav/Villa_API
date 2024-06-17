@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.JsonPatch;
+using Microsoft.AspNetCore.Mvc;
 using Villa_API.Dto;
 using Villa_API.Store;
 
@@ -79,6 +80,7 @@ namespace Villa_API.Controllers
          return CreatedAtRoute("GetVilla", new { id = nextVillaId }, villaDto);
       }
 
+      /* DELETE */
       [HttpDelete("{id:int}")]
       [ProducesResponseType(StatusCodes.Status204NoContent)]
       [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -102,6 +104,7 @@ namespace Villa_API.Controllers
          return NoContent();
       }
 
+      /* PUT */
       [HttpPut("{id:int}")]
       [ProducesResponseType(StatusCodes.Status204NoContent)]
       [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -135,6 +138,37 @@ namespace Villa_API.Controllers
          return NoContent();
       }
 
+      /* PATCH */
+      [HttpPatch("{id:int}")]
+      [ProducesResponseType(StatusCodes.Status204NoContent)]
+      [ProducesResponseType(StatusCodes.Status400BadRequest)]
+      [ProducesResponseType(StatusCodes.Status404NotFound)]
+      public IActionResult UpdatePartialVilla(int id, JsonPatchDocument<VillaDto> patchVillaDto)
+      {
+         if (patchVillaDto == null || id == 0)
+         {
+            return BadRequest("El objeto de villa no puede ser nulo ni el id 0");
+         }
+
+         // se busca el registro a modificar
+         var existingVilla = VillaStore.villaList.FirstOrDefault(v => v.Id == id);
+
+         if (existingVilla == null)
+         {
+            return NotFound();
+         }
+
+         // se utiliza el paquete para aplicar los cambios. Se le pasa como segundo parametro model state para validar
+         patchVillaDto.ApplyTo(existingVilla, ModelState);
+         // se pregunta por el model state
+         if (!ModelState.IsValid)
+         {
+            return BadRequest(ModelState);
+         }
+
+         // Retorno con código de estado 204 No Content
+         return NoContent();
+      }
 
    } // class
 } // namespace
