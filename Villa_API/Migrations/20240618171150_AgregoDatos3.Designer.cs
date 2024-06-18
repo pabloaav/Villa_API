@@ -12,8 +12,8 @@ using Villa_API.Store;
 namespace Villa_API.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20240617144958_AlimentarTablaVilla")]
-    partial class AlimentarTablaVilla
+    [Migration("20240618171150_AgregoDatos3")]
+    partial class AgregoDatos3
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -71,16 +71,29 @@ namespace Villa_API.Migrations
                     b.HasData(
                         new
                         {
-                            Id = 1,
+                            Id = 11,
                             Amenidad = "Piscina, Wi-Fi, Aire acondicionado",
-                            Created_at = new DateTime(2024, 6, 17, 11, 49, 57, 945, DateTimeKind.Local).AddTicks(9358),
+                            Created_at = new DateTime(2024, 6, 18, 14, 11, 50, 220, DateTimeKind.Local).AddTicks(7454),
                             Detalle = "Una hermosa villa con vista al mar",
                             ImagenUrl = "http://ejemplo.com/imagen.jpg",
                             MetrosCuadrados = 150,
                             Name = "Villa Maravilla",
                             Ocupantes = 4,
                             Tarifa = 300.5,
-                            Updated_at = new DateTime(2024, 6, 17, 11, 49, 57, 945, DateTimeKind.Local).AddTicks(9373)
+                            Updated_at = new DateTime(2024, 6, 18, 14, 11, 50, 220, DateTimeKind.Local).AddTicks(7467)
+                        },
+                        new
+                        {
+                            Id = 12,
+                            Amenidad = "Jacuzzi, Sauna, Gimnasio, Wi-Fi",
+                            Created_at = new DateTime(2024, 6, 18, 14, 11, 50, 220, DateTimeKind.Local).AddTicks(7471),
+                            Detalle = "Un retiro tranquilo con acceso privado a la playa",
+                            ImagenUrl = "http://ejemplo.com/villa-solyplaya.jpg",
+                            MetrosCuadrados = 200,
+                            Name = "Villa Sol y Playa",
+                            Ocupantes = 6,
+                            Tarifa = 450.75,
+                            Updated_at = new DateTime(2024, 6, 18, 14, 11, 50, 220, DateTimeKind.Local).AddTicks(7471)
                         });
                 });
 #pragma warning restore 612, 618

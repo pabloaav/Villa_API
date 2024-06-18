@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Villa_API.Dto;
+using Villa_API.Models;
 using Villa_API.Store;
 
 namespace Villa_API.Controllers
@@ -9,11 +11,14 @@ namespace Villa_API.Controllers
    [ApiController]
    public class VillaController : ControllerBase
    {
+      // Para acceder a base de datos se inyecta en dbContext en el constructor
       private readonly ILogger<VillaController> _logger;
+      private readonly ApplicationDbContext _db;
       // Constructor
-      public VillaController(ILogger<VillaController> logger)
+      public VillaController(ILogger<VillaController> logger, ApplicationDbContext db)
       {
          _logger = logger;
+         _db = db;
       }
 
       /* GET ALL */
@@ -22,7 +27,8 @@ namespace Villa_API.Controllers
       public ActionResult<IEnumerable<VillaDto>> GetVillas()
       {
          _logger.LogInformation("Obteniendo todas las villas");
-         return Ok(VillaStore.villaList);
+         //return Ok(VillaStore.villaList);
+         return Ok(_db.Villas.ToList());
       }
 
       /* GET ONE */
@@ -38,7 +44,8 @@ namespace Villa_API.Controllers
             _logger.LogError("Error al obtener la villa con id {0}", id);
             return BadRequest();
          }
-         var villa = VillaStore.villaList.FirstOrDefault(v => v.Id == id);
+         //var villa = VillaStore.villaList.FirstOrDefault(v => v.Id == id);
+         var villa = _db.Villas.FirstOrDefault(v => v.Id == id);
          if (villa == null)
          {
             return NotFound();
@@ -62,7 +69,7 @@ namespace Villa_API.Controllers
          }
 
          // validacion personalizada
-         if (VillaStore.villaList.FirstOrDefault(v => v.Nombre.ToLower() == villaDto.Nombre.ToLower()) != null)
+         if (_db.Villas.FirstOrDefault(v => v.Name.ToLower() == villaDto.Nombre.ToLower()) != null)
          {
             ModelState.AddModelError("NombreExiste", "La villa con ese nombre ya existe.");
             return BadRequest(ModelState);
@@ -80,15 +87,30 @@ namespace Villa_API.Controllers
             return BadRequest("El ID de una nueva villa debe ser 0.");
          }
 
-         var nextVillaId = VillaStore.villaList.OrderByDescending(v => v.Id).FirstOrDefault().Id + 1;
+         //var nextVillaId = VillaStore.villaList.OrderByDescending(v => v.Id).FirstOrDefault().Id + 1;
 
-         villaDto.Id = nextVillaId;
+         //villaDto.Id = nextVillaId;
 
          // Almacenamiento de la nueva villa
-         VillaStore.villaList.Add(villaDto);
+         //VillaStore.villaList.Add(villaDto);
+
+         // copiar datos del DTO al Modelo
+         Villa tempModel = new Villa()
+         {
+
+            Name = villaDto.Nombre,
+            Detalle = villaDto.Detalle,
+            ImagenUrl = villaDto.ImagenUrl,
+            Ocupantes = villaDto.Ocupantes,
+            Tarifa = villaDto.Tarifa,
+            MetrosCuadrados = villaDto.MetrosCuadrados,
+            Amenidad = villaDto.Amenidad
+         };
+         _db.Villas.Add(tempModel);
+         _db.SaveChanges();
 
          // Retorno de la villa creada con código de estado 201 Created
-         return CreatedAtRoute("GetVilla", new { id = nextVillaId }, villaDto);
+         return CreatedAtRoute("GetVilla", new { id = villaDto.Id }, villaDto);
       }
 
       /* DELETE */
@@ -103,14 +125,15 @@ namespace Villa_API.Controllers
             return BadRequest();
          }
 
-         var villa = VillaStore.villaList.FirstOrDefault(v => v.Id == id);
+         var villa = _db.Villas.FirstOrDefault(v => v.Id == id);
 
          if (villa == null)
          {
             return NotFound();
          }
 
-         VillaStore.villaList.Remove(villa);
+         _db.Villas.Remove(villa);
+         _db.SaveChanges();
 
          return NoContent();
       }
@@ -132,18 +155,20 @@ namespace Villa_API.Controllers
             return BadRequest("El ID proporcionado no coincide con el ID de la villa.");
          }
 
-         var existingVilla = VillaStore.villaList.FirstOrDefault(v => v.Id == id);
-
-         if (existingVilla == null)
+         // copiar datos del DTO al Modelo
+         Villa tempModel = new Villa()
          {
-            return NotFound();
-         }
-
-         // Actualizar propiedades de la villa existente con los valores del objeto actualizado
-         existingVilla.Nombre = updatedVillaDto.Nombre;
-         existingVilla.MetrosCuadrados = updatedVillaDto.MetrosCuadrados;
-         existingVilla.Ocupantes = updatedVillaDto.Ocupantes;
-         // ... otras propiedades que necesitas actualizar
+            Id = updatedVillaDto.Id,
+            Name = updatedVillaDto.Nombre,
+            Detalle = updatedVillaDto.Detalle,
+            ImagenUrl = updatedVillaDto.ImagenUrl,
+            Ocupantes = updatedVillaDto.Ocupantes,
+            Tarifa = updatedVillaDto.Tarifa,
+            MetrosCuadrados = updatedVillaDto.MetrosCuadrados,
+            Amenidad = updatedVillaDto.Amenidad
+         };
+         _db.Villas.Update(tempModel);
+         _db.SaveChanges();
 
          // Retorno con código de estado 204 No Content
          return NoContent();
@@ -162,7 +187,7 @@ namespace Villa_API.Controllers
          }
 
          // se busca el registro a modificar
-         var existingVilla = VillaStore.villaList.FirstOrDefault(v => v.Id == id);
+         var existingVilla = _db.Villas.AsNoTracking().FirstOrDefault(v => v.Id == id);
 
          if (existingVilla == null)
          {
@@ -170,12 +195,46 @@ namespace Villa_API.Controllers
          }
 
          // se utiliza el paquete para aplicar los cambios. Se le pasa como segundo parametro model state para validar
-         patchVillaDto.ApplyTo(existingVilla, ModelState);
-         // se pregunta por el model state
+         //patchVillaDto.ApplyTo(existingVilla, ModelState);
+
+         // copiar los valores de una villa existente al DTO temporal
+         VillaDto villaDto = new VillaDto()
+         {
+            Id = existingVilla.Id,
+            Nombre = existingVilla.Name,
+            Detalle = existingVilla.Detalle,
+            ImagenUrl = existingVilla.ImagenUrl,
+            Ocupantes = existingVilla.Ocupantes,
+            Tarifa = existingVilla.Tarifa,
+            MetrosCuadrados = existingVilla.MetrosCuadrados,
+            Amenidad = existingVilla.Amenidad
+         };
+
+         // aplicar el objeto patch a el DTO temporal
+         patchVillaDto.ApplyTo(villaDto, ModelState);
+
+         // se pregunta por el model state, para que los cambios sean consistentes
          if (!ModelState.IsValid)
          {
             return BadRequest(ModelState);
          }
+
+         // ahora villaDto contiene los cambios aplicados. Pasamos el DTO al modelo temporal para guardar los cambios
+         Villa modelo = new Villa()
+         {
+            Id = villaDto.Id,
+            Name = villaDto.Nombre,
+            Detalle = villaDto.Detalle,
+            ImagenUrl = villaDto.ImagenUrl,
+            Ocupantes = villaDto.Ocupantes,
+            Tarifa = villaDto.Tarifa,
+            MetrosCuadrados = villaDto.MetrosCuadrados,
+            Amenidad = villaDto.Amenidad
+         };
+
+         _db.Villas.Update(modelo);
+         _db.SaveChanges();
+
 
          // Retorno con código de estado 204 No Content
          return NoContent();
