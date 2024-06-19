@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.JsonPatch;
+﻿using AutoMapper;
+using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Villa_API.Dto;
@@ -14,12 +15,13 @@ namespace Villa_API.Controllers
       // Para acceder a base de datos se inyecta en dbContext en el constructor
       private readonly ILogger<VillaController> _logger;
       private readonly ApplicationDbContext _db;
-
+      private readonly IMapper _mapper;
       // Constructor
-      public VillaController(ILogger<VillaController> logger, ApplicationDbContext db)
+      public VillaController(ILogger<VillaController> logger, ApplicationDbContext db, IMapper mapper)
       {
          _logger = logger;
          _db = db;
+         _mapper = mapper;
       }
 
       /* GET ALL */
@@ -28,9 +30,10 @@ namespace Villa_API.Controllers
       public async Task<ActionResult<IEnumerable<VillaDto>>> GetVillas()
       {
          _logger.LogInformation("Obteniendo todas las villas");
-         //return Ok(VillaStore.villaList);
-         var response = await _db.Villas.ToListAsync();
-         return Ok(response);
+         // traer todas las villas modelo de capa de servicio
+         IEnumerable<Villa> response = await _db.Villas.ToListAsync();
+         // mapear antes de retornar. Se mapea a un dto
+         return Ok(_mapper.Map<IEnumerable<VillaDto>>(response));
       }
 
       /* GET ONE */
@@ -53,7 +56,7 @@ namespace Villa_API.Controllers
             return NotFound();
          }
 
-         return Ok(villa);
+         return Ok(_mapper.Map<VillaDto>(villa));
 
       }
 
@@ -62,7 +65,7 @@ namespace Villa_API.Controllers
       [ProducesResponseType(StatusCodes.Status201Created)]
       [ProducesResponseType(StatusCodes.Status400BadRequest)]
       [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-      public async Task<ActionResult<VillaDto>> CreateVilla([FromBody] VillaCreateDto villaDto)
+      public async Task<ActionResult<VillaDto>> CreateVilla([FromBody] VillaCreateDto villaCreateDto)
       {
          // VAlidacion Model State
          if (!ModelState.IsValid)
@@ -71,7 +74,7 @@ namespace Villa_API.Controllers
          }
 
          // validacion personalizada
-         if (await _db.Villas.FirstOrDefaultAsync(v => v.Name.ToLower() == villaDto.Nombre.ToLower()) != null)
+         if (await _db.Villas.FirstOrDefaultAsync(v => v.Name.ToLower() == villaCreateDto.Nombre.ToLower()) != null)
          {
             ModelState.AddModelError("NombreExiste", "La villa con ese nombre ya existe.");
             return BadRequest(ModelState);
@@ -79,7 +82,7 @@ namespace Villa_API.Controllers
 
 
          // Validación de entrada básica
-         if (villaDto == null)
+         if (villaCreateDto == null)
          {
             return BadRequest("El objeto de villa no puede ser nulo.");
          }
@@ -91,18 +94,18 @@ namespace Villa_API.Controllers
          // Almacenamiento de la nueva villa
          //VillaStore.villaList.Add(villaDto);
 
-         // copiar datos del DTO al Modelo
-         Villa modelo = new Villa()
-         {
+         // mapear datos del DTO al Modelo
+         Villa modelo = _mapper.Map<Villa>(villaCreateDto);
+         //{
 
-            Name = villaDto.Nombre,
-            Detalle = villaDto.Detalle,
-            ImagenUrl = villaDto.ImagenUrl,
-            Ocupantes = villaDto.Ocupantes,
-            Tarifa = villaDto.Tarifa,
-            MetrosCuadrados = villaDto.MetrosCuadrados,
-            Amenidad = villaDto.Amenidad
-         };
+         //   Name = villaCreateDto.Nombre,
+         //   Detalle = villaCreateDto.Detalle,
+         //   ImagenUrl = villaCreateDto.ImagenUrl,
+         //   Ocupantes = villaCreateDto.Ocupantes,
+         //   Tarifa = villaCreateDto.Tarifa,
+         //   MetrosCuadrados = villaCreateDto.MetrosCuadrados,
+         //   Amenidad = villaCreateDto.Amenidad
+         //};
          await _db.Villas.AddAsync(modelo);
          await _db.SaveChangesAsync();
 
@@ -140,30 +143,30 @@ namespace Villa_API.Controllers
       [ProducesResponseType(StatusCodes.Status204NoContent)]
       [ProducesResponseType(StatusCodes.Status400BadRequest)]
       [ProducesResponseType(StatusCodes.Status404NotFound)]
-      public async Task<IActionResult> UpdateVilla(int id, [FromBody] VillaUpdateDto updatedVillaDto)
+      public async Task<IActionResult> UpdateVilla(int id, [FromBody] VillaUpdateDto villaUpdateDto)
       {
-         if (updatedVillaDto == null || id != updatedVillaDto.Id)
+         if (villaUpdateDto == null || id != villaUpdateDto.Id)
          {
             return BadRequest("El objeto de villa no puede ser nulo.");
          }
 
-         if (id != updatedVillaDto.Id)
+         if (id != villaUpdateDto.Id)
          {
             return BadRequest("El ID proporcionado no coincide con el ID de la villa.");
          }
 
          // copiar datos del DTO al Modelo
-         Villa modelo = new Villa()
-         {
-            Id = updatedVillaDto.Id,
-            Name = updatedVillaDto.Nombre,
-            Detalle = updatedVillaDto.Detalle,
-            ImagenUrl = updatedVillaDto.ImagenUrl,
-            Ocupantes = updatedVillaDto.Ocupantes,
-            Tarifa = updatedVillaDto.Tarifa,
-            MetrosCuadrados = updatedVillaDto.MetrosCuadrados,
-            Amenidad = updatedVillaDto.Amenidad
-         };
+         Villa modelo = _mapper.Map<Villa>(villaUpdateDto);
+         //{
+         //   Id = updatedVillaDto.Id,
+         //   Name = updatedVillaDto.Nombre,
+         //   Detalle = updatedVillaDto.Detalle,
+         //   ImagenUrl = updatedVillaDto.ImagenUrl,
+         //   Ocupantes = updatedVillaDto.Ocupantes,
+         //   Tarifa = updatedVillaDto.Tarifa,
+         //   MetrosCuadrados = updatedVillaDto.MetrosCuadrados,
+         //   Amenidad = updatedVillaDto.Amenidad
+         //};
          _db.Villas.Update(modelo);
          await _db.SaveChangesAsync();
 
@@ -195,17 +198,17 @@ namespace Villa_API.Controllers
          //patchVillaDto.ApplyTo(existingVilla, ModelState);
 
          // copiar los valores de una villa existente al DTO temporal
-         VillaUpdateDto villaDto = new()
-         {
-            Id = existingVilla.Id,
-            Nombre = existingVilla.Name,
-            Detalle = existingVilla.Detalle,
-            ImagenUrl = existingVilla.ImagenUrl,
-            Ocupantes = existingVilla.Ocupantes,
-            Tarifa = existingVilla.Tarifa,
-            MetrosCuadrados = existingVilla.MetrosCuadrados,
-            Amenidad = existingVilla.Amenidad
-         };
+         VillaUpdateDto villaDto = _mapper.Map<VillaUpdateDto>(existingVilla);
+         //{
+         //   Id = existingVilla.Id,
+         //   Nombre = existingVilla.Name,
+         //   Detalle = existingVilla.Detalle,
+         //   ImagenUrl = existingVilla.ImagenUrl,
+         //   Ocupantes = existingVilla.Ocupantes,
+         //   Tarifa = existingVilla.Tarifa,
+         //   MetrosCuadrados = existingVilla.MetrosCuadrados,
+         //   Amenidad = existingVilla.Amenidad
+         //};
 
          // aplicar el objeto patch a el DTO temporal
          patchVillaDto.ApplyTo(villaDto, ModelState);
@@ -217,17 +220,17 @@ namespace Villa_API.Controllers
          }
 
          // ahora villaDto contiene los cambios aplicados. Pasamos el DTO al modelo temporal para guardar los cambios
-         Villa modelo = new()
-         {
-            Id = villaDto.Id,
-            Name = villaDto.Nombre,
-            Detalle = villaDto.Detalle,
-            ImagenUrl = villaDto.ImagenUrl,
-            Ocupantes = villaDto.Ocupantes,
-            Tarifa = villaDto.Tarifa,
-            MetrosCuadrados = villaDto.MetrosCuadrados,
-            Amenidad = villaDto.Amenidad
-         };
+         Villa modelo = _mapper.Map<Villa>(villaDto);
+         //{
+         //   Id = villaDto.Id,
+         //   Name = villaDto.Nombre,
+         //   Detalle = villaDto.Detalle,
+         //   ImagenUrl = villaDto.ImagenUrl,
+         //   Ocupantes = villaDto.Ocupantes,
+         //   Tarifa = villaDto.Tarifa,
+         //   MetrosCuadrados = villaDto.MetrosCuadrados,
+         //   Amenidad = villaDto.Amenidad
+         //};
 
          _db.Villas.Update(modelo);
          await _db.SaveChangesAsync();
