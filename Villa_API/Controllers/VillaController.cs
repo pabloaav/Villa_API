@@ -1,6 +1,7 @@
 ﻿using AutoMapper;
 using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
+using System.Net;
 using Villa_API.Dto;
 using Villa_API.Models;
 using Villa_API.Repository.IRepository;
@@ -15,24 +16,39 @@ namespace Villa_API.Controllers
       private readonly ILogger<VillaController> _logger;
       private readonly IVillaRepository _iVillaRepository;
       private readonly IMapper _mapper;
+      private readonly ApiResponse _response;
+
       // Constructor
       public VillaController(ILogger<VillaController> logger, IVillaRepository iVillaRepository, IMapper mapper)
       {
          _logger = logger;
          _iVillaRepository = iVillaRepository;
          _mapper = mapper;
+         _response = new();
       }
 
       /* GET ALL */
       [HttpGet]
       [ProducesResponseType(StatusCodes.Status200OK)]
-      public async Task<ActionResult<IEnumerable<VillaDto>>> GetVillas()
+      public async Task<ActionResult<ApiResponse>> GetVillas()
       {
-         _logger.LogInformation("Obteniendo todas las villas");
-         // traer todas las villas modelo de capa de servicio
-         IEnumerable<Villa> response = await _iVillaRepository.GetAll();
-         // mapear antes de retornar. Se mapea a un dto
-         return Ok(_mapper.Map<IEnumerable<VillaDto>>(response));
+         try
+         {
+            _logger.LogInformation("Obteniendo todas las villas");
+            // traer todas las villas modelo de capa de servicio
+            IEnumerable<Villa> villaList = await _iVillaRepository.GetAll();
+            // asignar a ApiResponse
+            _response.Resultado = _mapper.Map<IEnumerable<VillaDto>>(villaList);
+            _response.StatusCode = HttpStatusCode.OK;
+            return Ok(_response);
+         }
+         catch (Exception ex)
+         {
+            _response.IsExitoso = false;
+            _response.ErrorMessages = new List<string>() { ex.ToString() };
+         }
+
+         return BadRequest(_response);
       }
 
       /* GET ONE */
@@ -41,21 +57,37 @@ namespace Villa_API.Controllers
       [ProducesResponseType(StatusCodes.Status404NotFound)]
       [ProducesResponseType(StatusCodes.Status400BadRequest)]
 
-      public async Task<ActionResult<VillaDto>> GetVilla(int id)
+      public async Task<ActionResult<ApiResponse>> GetVilla(int id)
       {
-         if (id == 0)
+         try
          {
-            _logger.LogError("Error al obtener la villa con id {0}", id);
-            return BadRequest();
+            if (id == 0)
+            {
+               _logger.LogError("Error al obtener la villa con id {0}", id);
+               _response.StatusCode = HttpStatusCode.BadRequest;
+               return BadRequest(_response);
+            }
+            //var villa = VillaStore.villaList.FirstOrDefault(v => v.Id == id);
+            var villa = await _iVillaRepository.Get(v => v.Id == id);
+            if (villa == null)
+            {
+               _response.StatusCode = HttpStatusCode.NotFound;
+               _response.IsExitoso = false;
+               _response.Resultado = "La villa no fue encontrada.";
+               return NotFound(_response);
+            }
+            _response.Resultado = _mapper.Map<VillaDto>(villa);
+            _response.StatusCode = HttpStatusCode.OK;
+            return Ok(_response);
+
          }
-         //var villa = VillaStore.villaList.FirstOrDefault(v => v.Id == id);
-         var villa = await _iVillaRepository.Get(v => v.Id == id);
-         if (villa == null)
+         catch (Exception ex)
          {
-            return NotFound();
+            _response.IsExitoso = false;
+            _response.ErrorMessages = new List<string>() { ex.ToString() };
          }
 
-         return Ok(_mapper.Map<VillaDto>(villa));
+         return BadRequest(_response);
 
       }
 
@@ -64,53 +96,53 @@ namespace Villa_API.Controllers
       [ProducesResponseType(StatusCodes.Status201Created)]
       [ProducesResponseType(StatusCodes.Status400BadRequest)]
       [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-      public async Task<ActionResult<VillaDto>> CreateVilla([FromBody] VillaCreateDto villaCreateDto)
+      public async Task<ActionResult<ApiResponse>> CreateVilla([FromBody] VillaCreateDto villaCreateDto)
       {
-         // VAlidacion Model State
-         if (!ModelState.IsValid)
+         try
          {
-            return BadRequest(ModelState);
+            // VAlidacion Model State
+            if (!ModelState.IsValid)
+            {
+               return BadRequest(ModelState);
+            }
+
+            // validacion personalizada
+            if (await _iVillaRepository.Get(v => v.Name.ToLower() == villaCreateDto.Nombre.ToLower()) != null)
+            {
+               ModelState.AddModelError("NombreExiste", "La villa con ese nombre ya existe.");
+               return BadRequest(ModelState);
+            }
+
+
+            // Validación de entrada básica
+            if (villaCreateDto == null)
+            {
+               _response.StatusCode = HttpStatusCode.BadRequest;
+               _response.IsExitoso = false;
+               _response.Resultado = "El objeto de villa no puede ser nulo.";
+               return BadRequest(_response);
+            }
+
+            // mapear datos del DTO al Modelo
+            Villa modelo = _mapper.Map<Villa>(villaCreateDto);
+
+            // dentro del Create esta el save changes
+            await _iVillaRepository.Create(modelo);
+
+            _response.IsExitoso = true;
+            _response.Resultado = modelo;
+            _response.StatusCode = HttpStatusCode.Created;
+
+            // Retorno de la villa creada con código de estado 201 Created
+            return CreatedAtRoute("GetVilla", new { id = modelo.Id }, _response);
+         }
+         catch (Exception ex)
+         {
+            _response.IsExitoso = false;
+            _response.ErrorMessages = new List<string>() { ex.ToString() };
          }
 
-         // validacion personalizada
-         if (await _iVillaRepository.Get(v => v.Name.ToLower() == villaCreateDto.Nombre.ToLower()) != null)
-         {
-            ModelState.AddModelError("NombreExiste", "La villa con ese nombre ya existe.");
-            return BadRequest(ModelState);
-         }
-
-
-         // Validación de entrada básica
-         if (villaCreateDto == null)
-         {
-            return BadRequest("El objeto de villa no puede ser nulo.");
-         }
-
-         //var nextVillaId = VillaStore.villaList.OrderByDescending(v => v.Id).FirstOrDefault().Id + 1;
-
-         //villaDto.Id = nextVillaId;
-
-         // Almacenamiento de la nueva villa
-         //VillaStore.villaList.Add(villaDto);
-
-         // mapear datos del DTO al Modelo
-         Villa modelo = _mapper.Map<Villa>(villaCreateDto);
-         //{
-
-         //   Name = villaCreateDto.Nombre,
-         //   Detalle = villaCreateDto.Detalle,
-         //   ImagenUrl = villaCreateDto.ImagenUrl,
-         //   Ocupantes = villaCreateDto.Ocupantes,
-         //   Tarifa = villaCreateDto.Tarifa,
-         //   MetrosCuadrados = villaCreateDto.MetrosCuadrados,
-         //   Amenidad = villaCreateDto.Amenidad
-         //};
-
-         // dentro del Create esta el save changes
-         await _iVillaRepository.Create(modelo);
-
-         // Retorno de la villa creada con código de estado 201 Created
-         return CreatedAtRoute("GetVilla", new { id = modelo.Id }, modelo);
+         return BadRequest(_response);
       }
 
       /* DELETE */
@@ -120,21 +152,40 @@ namespace Villa_API.Controllers
       [ProducesResponseType(StatusCodes.Status404NotFound)]
       public async Task<IActionResult> Delete(int id)
       {
-         if (id == 0)
+         try
          {
-            return BadRequest();
+            if (id == 0)
+            {
+               _response.StatusCode = HttpStatusCode.BadRequest;
+               _response.IsExitoso = false;
+               _response.Resultado = "El ID de la villa no puede ser 0.";
+               return BadRequest();
+            }
+
+            var villa = await _iVillaRepository.Get(v => v.Id == id);
+
+            if (villa == null)
+            {
+               _response.StatusCode = HttpStatusCode.NotFound;
+               _response.IsExitoso = false;
+               _response.Resultado = "La villa no fue encontrada.";
+               return NotFound();
+            }
+
+            await _iVillaRepository.Remove(villa);
+            _response.StatusCode = HttpStatusCode.NoContent;
+            _response.IsExitoso = true;
+            _response.Resultado = "La villa fue eliminada.";
+
+            return Ok(_response);
+         }
+         catch (Exception ex)
+         {
+            _response.IsExitoso = false;
+            _response.ErrorMessages = new List<string>() { ex.ToString() };
          }
 
-         var villa = await _iVillaRepository.Get(v => v.Id == id);
-
-         if (villa == null)
-         {
-            return NotFound();
-         }
-
-         await _iVillaRepository.Remove(villa);
-
-         return NoContent();
+         return BadRequest(_response);
       }
 
       /* PUT */
@@ -144,33 +195,43 @@ namespace Villa_API.Controllers
       [ProducesResponseType(StatusCodes.Status404NotFound)]
       public async Task<IActionResult> UpdateVilla(int id, [FromBody] VillaUpdateDto villaUpdateDto)
       {
-         if (villaUpdateDto == null || id != villaUpdateDto.Id)
+         if (villaUpdateDto == null)
          {
-            return BadRequest("El objeto de villa no puede ser nulo.");
+            _response.StatusCode = HttpStatusCode.BadRequest;
+            _response.IsExitoso = false;
+            _response.Resultado = "El objeto de villa no puede ser nulo.";
+            return BadRequest(_response);
          }
 
          if (id != villaUpdateDto.Id)
          {
-            return BadRequest("El ID proporcionado no coincide con el ID de la villa.");
+            _response.StatusCode = HttpStatusCode.BadRequest;
+            _response.IsExitoso = false;
+            _response.Resultado = "El ID proporcionado no coincide con el ID de la villa.";
+            return BadRequest(_response);
          }
 
          // copiar datos del DTO al Modelo
          Villa modelo = _mapper.Map<Villa>(villaUpdateDto);
-         //{
-         //   Id = updatedVillaDto.Id,
-         //   Name = updatedVillaDto.Nombre,
-         //   Detalle = updatedVillaDto.Detalle,
-         //   ImagenUrl = updatedVillaDto.ImagenUrl,
-         //   Ocupantes = updatedVillaDto.Ocupantes,
-         //   Tarifa = updatedVillaDto.Tarifa,
-         //   MetrosCuadrados = updatedVillaDto.MetrosCuadrados,
-         //   Amenidad = updatedVillaDto.Amenidad
-         //};
+
+         // comprobar existencia del registro
+         var existe = await _iVillaRepository.Get(v => v.Id == id, tracked: false);
+         if (existe == null)
+         {
+            _response.StatusCode = HttpStatusCode.NotFound;
+            _response.IsExitoso = false;
+            _response.Resultado = "La villa no fue encontrada.";
+            return NotFound(_response);
+         }
 
          await _iVillaRepository.Update(modelo);
 
+         _response.StatusCode = HttpStatusCode.NoContent;
+         _response.IsExitoso = true;
+         _response.Resultado = "La villa fue actualizada.";
+
          // Retorno con código de estado 204 No Content
-         return NoContent();
+         return Ok(_response);
       }
 
       /* PATCH */
@@ -182,7 +243,10 @@ namespace Villa_API.Controllers
       {
          if (patchVillaDto == null || id == 0)
          {
-            return BadRequest("El objeto de villa no puede ser nulo ni el id 0");
+            _response.StatusCode = HttpStatusCode.BadRequest;
+            _response.IsExitoso = false;
+            _response.Resultado = "El objeto de villa no puede ser nulo.";
+            return BadRequest(_response);
          }
 
          // se busca el registro a modificar. Se le indica AsNoTracking
@@ -190,24 +254,15 @@ namespace Villa_API.Controllers
 
          if (existingVilla == null)
          {
-            return NotFound();
+            _response.StatusCode = HttpStatusCode.NotFound;
+            _response.IsExitoso = false;
+            _response.Resultado = "La villa no fue encontrada.";
+            return NotFound(_response);
          }
-
-         // se utiliza el paquete para aplicar los cambios. Se le pasa como segundo parametro model state para validar
-         //patchVillaDto.ApplyTo(existingVilla, ModelState);
 
          // copiar los valores de una villa existente al DTO temporal
          VillaUpdateDto villaDto = _mapper.Map<VillaUpdateDto>(existingVilla);
-         //{
-         //   Id = existingVilla.Id,
-         //   Nombre = existingVilla.Name,
-         //   Detalle = existingVilla.Detalle,
-         //   ImagenUrl = existingVilla.ImagenUrl,
-         //   Ocupantes = existingVilla.Ocupantes,
-         //   Tarifa = existingVilla.Tarifa,
-         //   MetrosCuadrados = existingVilla.MetrosCuadrados,
-         //   Amenidad = existingVilla.Amenidad
-         //};
+
 
          // aplicar el objeto patch a el DTO temporal
          patchVillaDto.ApplyTo(villaDto, ModelState);
@@ -215,27 +270,23 @@ namespace Villa_API.Controllers
          // se pregunta por el model state, para que los cambios sean consistentes
          if (!ModelState.IsValid)
          {
-            return BadRequest(ModelState);
+            _response.StatusCode = HttpStatusCode.BadRequest;
+            _response.IsExitoso = false;
+            _response.Resultado = ModelState;
+            return BadRequest(_response);
          }
 
          // ahora villaDto contiene los cambios aplicados. Pasamos el DTO al modelo temporal para guardar los cambios
          Villa modelo = _mapper.Map<Villa>(villaDto);
-         //{
-         //   Id = villaDto.Id,
-         //   Name = villaDto.Nombre,
-         //   Detalle = villaDto.Detalle,
-         //   ImagenUrl = villaDto.ImagenUrl,
-         //   Ocupantes = villaDto.Ocupantes,
-         //   Tarifa = villaDto.Tarifa,
-         //   MetrosCuadrados = villaDto.MetrosCuadrados,
-         //   Amenidad = villaDto.Amenidad
-         //};
 
          await _iVillaRepository.Update(modelo);
 
+         _response.StatusCode = HttpStatusCode.NoContent;
+         _response.IsExitoso = true;
+         _response.Resultado = "La villa fue actualizada.";
 
          // Retorno con código de estado 204 No Content
-         return NoContent();
+         return Ok(_response);
       }
 
    } // class
