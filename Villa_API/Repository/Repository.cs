@@ -1,8 +1,9 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using System.Linq.Expressions;
+using Villa_API.Repository.IRepository;
 using Villa_API.Store;
 
-namespace Villa_API.Repository.IRepository
+namespace Villa_API.Repository
 {
    // es la clase que implementa el IRepository
    public class Repository<T> : IRepository<T> where T : class

@@ -1,10 +1,9 @@
 ﻿using AutoMapper;
 using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using Villa_API.Dto;
 using Villa_API.Models;
-using Villa_API.Store;
+using Villa_API.Repository.IRepository;
 
 namespace Villa_API.Controllers
 {
@@ -14,13 +13,13 @@ namespace Villa_API.Controllers
    {
       // Para acceder a base de datos se inyecta en dbContext en el constructor
       private readonly ILogger<VillaController> _logger;
-      private readonly ApplicationDbContext _db;
+      private readonly IVillaRepository _iVillaRepository;
       private readonly IMapper _mapper;
       // Constructor
-      public VillaController(ILogger<VillaController> logger, ApplicationDbContext db, IMapper mapper)
+      public VillaController(ILogger<VillaController> logger, IVillaRepository iVillaRepository, IMapper mapper)
       {
          _logger = logger;
-         _db = db;
+         _iVillaRepository = iVillaRepository;
          _mapper = mapper;
       }
 
@@ -31,7 +30,7 @@ namespace Villa_API.Controllers
       {
          _logger.LogInformation("Obteniendo todas las villas");
          // traer todas las villas modelo de capa de servicio
-         IEnumerable<Villa> response = await _db.Villas.ToListAsync();
+         IEnumerable<Villa> response = await _iVillaRepository.GetAll();
          // mapear antes de retornar. Se mapea a un dto
          return Ok(_mapper.Map<IEnumerable<VillaDto>>(response));
       }
@@ -50,7 +49,7 @@ namespace Villa_API.Controllers
             return BadRequest();
          }
          //var villa = VillaStore.villaList.FirstOrDefault(v => v.Id == id);
-         var villa = await _db.Villas.FirstOrDefaultAsync(v => v.Id == id);
+         var villa = await _iVillaRepository.Get(v => v.Id == id);
          if (villa == null)
          {
             return NotFound();
@@ -74,7 +73,7 @@ namespace Villa_API.Controllers
          }
 
          // validacion personalizada
-         if (await _db.Villas.FirstOrDefaultAsync(v => v.Name.ToLower() == villaCreateDto.Nombre.ToLower()) != null)
+         if (await _iVillaRepository.Get(v => v.Name.ToLower() == villaCreateDto.Nombre.ToLower()) != null)
          {
             ModelState.AddModelError("NombreExiste", "La villa con ese nombre ya existe.");
             return BadRequest(ModelState);
@@ -106,8 +105,9 @@ namespace Villa_API.Controllers
          //   MetrosCuadrados = villaCreateDto.MetrosCuadrados,
          //   Amenidad = villaCreateDto.Amenidad
          //};
-         await _db.Villas.AddAsync(modelo);
-         await _db.SaveChangesAsync();
+
+         // dentro del Create esta el save changes
+         await _iVillaRepository.Create(modelo);
 
          // Retorno de la villa creada con código de estado 201 Created
          return CreatedAtRoute("GetVilla", new { id = modelo.Id }, modelo);
@@ -125,15 +125,14 @@ namespace Villa_API.Controllers
             return BadRequest();
          }
 
-         var villa = await _db.Villas.FirstOrDefaultAsync(v => v.Id == id);
+         var villa = await _iVillaRepository.Get(v => v.Id == id);
 
          if (villa == null)
          {
             return NotFound();
          }
 
-         _db.Villas.Remove(villa);
-         await _db.SaveChangesAsync();
+         await _iVillaRepository.Remove(villa);
 
          return NoContent();
       }
@@ -167,8 +166,8 @@ namespace Villa_API.Controllers
          //   MetrosCuadrados = updatedVillaDto.MetrosCuadrados,
          //   Amenidad = updatedVillaDto.Amenidad
          //};
-         _db.Villas.Update(modelo);
-         await _db.SaveChangesAsync();
+
+         await _iVillaRepository.Update(modelo);
 
          // Retorno con código de estado 204 No Content
          return NoContent();
@@ -186,8 +185,8 @@ namespace Villa_API.Controllers
             return BadRequest("El objeto de villa no puede ser nulo ni el id 0");
          }
 
-         // se busca el registro a modificar
-         var existingVilla = await _db.Villas.AsNoTracking().FirstOrDefaultAsync(v => v.Id == id);
+         // se busca el registro a modificar. Se le indica AsNoTracking
+         var existingVilla = await _iVillaRepository.Get(v => v.Id == id, tracked: false);
 
          if (existingVilla == null)
          {
@@ -232,8 +231,7 @@ namespace Villa_API.Controllers
          //   Amenidad = villaDto.Amenidad
          //};
 
-         _db.Villas.Update(modelo);
-         await _db.SaveChangesAsync();
+         await _iVillaRepository.Update(modelo);
 
 
          // Retorno con código de estado 204 No Content

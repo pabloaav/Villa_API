@@ -3,6 +3,7 @@
 namespace Villa_API.Repository.IRepository
 {
    // Un IRepository es una interface generica, que recibe cualquier tipo de entidad
+   // Porposito: sirve para la capa de persistencia. Las operaciones comunes se hacen aqui. Update se hace por cada modelo
    public interface IRepository<T> where T : class
    {
       Task Create(T entity);

@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Villa_API.Dto;
+using Villa_API.Repository;
+using Villa_API.Repository.IRepository;
 using Villa_API.Store;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -17,6 +19,8 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 });
 // mapeador de objetos
 builder.Services.AddAutoMapper(typeof(MappingConfig));
+// se agrega servicio de repository
+builder.Services.AddScoped<IVillaRepository, VillaRepository>();
 
 var app = builder.Build();
 

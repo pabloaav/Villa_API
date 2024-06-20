@@ -4,7 +4,7 @@ namespace Villa_API.Dto
 {
    public class VillaCreateDto
    {
-      public int Id { get; set; }
+
       [MaxLength(30)]
       [Required]
       public string Nombre { get; set; }
