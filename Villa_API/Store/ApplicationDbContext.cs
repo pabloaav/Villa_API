@@ -10,6 +10,7 @@ namespace Villa_API.Store
       { }
       // indicamos que se cree una tabla en base de datos siguiendo el Modelo de la clase Villa
       public DbSet<Villa> Villas { get; set; }
+      public DbSet<NumeroVilla> NumeroVillas { get; set; }
 
       // Un seeder para cargar datos en lla tabla villas
       protected override void OnModelCreating(ModelBuilder modelBuilder)

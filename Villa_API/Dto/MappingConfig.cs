@@ -11,6 +11,11 @@ namespace Villa_API.Dto
          CreateMap<Villa, VillaDto>().ForMember(dest => dest.Nombre, opt => opt.MapFrom(src => src.Name)).ReverseMap();
          CreateMap<Villa, VillaCreateDto>().ForMember(dest => dest.Nombre, opt => opt.MapFrom(src => src.Name)).ReverseMap();
          CreateMap<Villa, VillaUpdateDto>().ForMember(dest => dest.Nombre, opt => opt.MapFrom(src => src.Name)).ReverseMap();
+
+         CreateMap<NumeroVilla, NumeroVillaDto>().ReverseMap();
+         CreateMap<NumeroVilla, NumeroVillaCreateDto>().ReverseMap();
+         CreateMap<NumeroVilla, NumeroVillaUpdateDto>().ReverseMap();
+
       }
    }
 }

@@ -19,8 +19,10 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 });
 // mapeador de objetos
 builder.Services.AddAutoMapper(typeof(MappingConfig));
-// se agrega servicio de repository
+// se agrega servicio de Villa repository
 builder.Services.AddScoped<IVillaRepository, VillaRepository>();
+// se agrega servicio de NumeroVilla repository
+builder.Services.AddScoped<INumeroVillaRepository, NumeroVillaRepository>();
 
 var app = builder.Build();
 

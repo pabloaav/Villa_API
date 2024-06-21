@@ -5,18 +5,18 @@ using Villa_API.Store;
 namespace Villa_API.Repository
 {
    // Implementa interfaz de Villa Repository
-   public class VillaRepository : Repository<Villa>, IVillaRepository
+   public class NumeroVillaRepository : Repository<NumeroVilla>, INumeroVillaRepository
    {
       private readonly ApplicationDbContext _db;
-      public VillaRepository(ApplicationDbContext db) : base(db)
+      public NumeroVillaRepository(ApplicationDbContext db) : base(db)
       {
          _db = db;
       }
 
-      public async Task<Villa> Update(Villa entity)
+      public async Task<NumeroVilla> Update(NumeroVilla entity)
       {
          entity.Updated_at = DateTime.Now;
-         _db.Villas.Update(entity);
+         _db.NumeroVillas.Update(entity);
          await _db.SaveChangesAsync();
          return entity;
       }
